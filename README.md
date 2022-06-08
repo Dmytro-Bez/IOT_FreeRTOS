@@ -1,3 +1,3 @@
 # IOT_FreeRTOS
 Development of an IoT project based on esp32 using VCode and FreeRTOS.
-This system includes light indication (two LEDs) and ESP32-WROOM-32.
+In this branch there is a parallel indication of LEDs, two colors, with a certain flicker interval. These two processes should be parallel tasks in the program.
