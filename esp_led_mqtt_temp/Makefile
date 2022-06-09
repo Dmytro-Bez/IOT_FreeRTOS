@@ -6,3 +6,6 @@
 PROJECT_NAME := sample_project
 
 include $(IDF_PATH)/make/project.mk
+export IDF_PATH := ./esp-idf
+include $(IDF_PATH)/make/project.mk
+
