@@ -18,6 +18,25 @@
 extern const uint8_t server_root_cert_pem_start[] asm("_binary_server_root_cert_pem_start");
 extern const uint8_t server_root_cert_pem_end[] asm("_binary_server_root_cert_pem_end");
 
+// static void status_callback_aws(esp_mqtt_status_t status) {
+//     switch (status) {
+//         case ESP_MQTT_STATUS_CONNECTED:
+//             esp_mqtt_subscribe("/he", 2);  // subscribe
+//             printf("Subscribe topic.\n");
+//             break;
+//         case ESP_MQTT_STATUS_DISCONNECTED:
+//             printf("Disconnect topic.\n");
+//         default:
+//             break;
+//   }
+// }
+
+// static void message_callback_aws(const char *topic, uint8_t *payload, size_t len) {
+//     printf("Work message aws.\n\n");
+//     ESP_LOGI("test", "incoming: %s => %s (%d)", topic, payload, (int)len);
+//     printf("Work message aws.\n");
+// }
+
 // static void connect_mqtt() {
 //     static bool use_tls = false;
 //     use_tls = !use_tls;
@@ -61,66 +80,55 @@ static void wifi_event_handler(void *event_handler_arg, esp_event_base_t event_b
   }
 }
 
-// static void status_callback_aws(esp_mqtt_status_t status) {
-//     switch (status) {
-//         case ESP_MQTT_STATUS_CONNECTED:
-//             esp_mqtt_subscribe("/he", 2);  // subscribe
-//             printf("Subcribe topic.\n");
-//             break;
-//         case ESP_MQTT_STATUS_DISCONNECTED:
-//             printf("Disconnect topic.\n");
-//         default:
-//             break;
-//   }
-// }
-
-// static void message_callback_aws(const char *topic, uint8_t *payload, size_t len) {
-//     printf("Work message aws.\n\n");
-//     ESP_LOGI("test", "incoming: %s => %s (%d)", topic, payload, (int)len);
-        //printf("Work message aws.\n");
-// }
-
 void app_main(void){
-    
     ESP_ERROR_CHECK(nvs_flash_init());  // initialize NVS flash
-    printf("Initialize NVS flash.\n");
+    // printf("Initialize NVS flash.\n");
+    ESP_LOGW("Main", "Initialize NVS flash."); 
 
     ESP_ERROR_CHECK(esp_netif_init());    // initialize networking
-    printf("Initialize networking.\n");   
+    // printf("Initialize networking.\n");
+    ESP_LOGW("Main", "Initialize networking.");   
   
     ESP_ERROR_CHECK(esp_event_loop_create_default()); // create default event loop
-    printf("Create default event loop.\n");
+    // printf("Create default event loop.\n");
+    ESP_LOGW("Main", "Create default event loop.");
 
     esp_netif_create_default_wifi_sta();  // enable Wi-Fi
-    printf("Enable Wi-Fi.\n");
+    // printf("Enable Wi-Fi.\n");
+    ESP_LOGW("Main", "Enable Wi-Fi.");
  
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT(); // initialize Wi-Fi
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
-    printf("Initialize Wi-Fi.\n");
+    // printf("Initialize Wi-Fi.\n");
+    ESP_LOGW("Main", "Initialize Wi-Fi.");
 
     ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_RAM));  // set Wi-Fi storage to ram
-    printf("Set Wi-Fi storage to ram.\n");
+    // printf("Set Wi-Fi storage to ram.");
+    ESP_LOGW("Main", "Set Wi-Fi storage to ram.");
 
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));  // set wifi mode
-    printf("Set wifi mode.\n");
-
+    // printf("Set wifi mode.\n");
+    ESP_LOGW("Main", "Set wifi mode.");
 
     ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler, NULL, NULL));  // register event handlers
     ESP_ERROR_CHECK(esp_event_handler_instance_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &wifi_event_handler, NULL, NULL));
-    printf("Register event handlers.\n");
+    // printf("Register event handlers.\n");
+    ESP_LOGW("Main", "Prepare Wi-Fi config.");
 
     wifi_config_t wifi_config = {.sta = {.ssid = WIFI_SSID, .password = WIFI_PASS}};  // prepare Wi-Fi config
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
-    printf("Prepare Wi-Fi config.\n");
+    // printf("Prepare Wi-Fi config.\n");
+    ESP_LOGW("Main", "Register event handlers.");
 
     ESP_ERROR_CHECK(esp_wifi_start());    // start Wi-Fi
-    printf("Start Wi-Fi.\n");
+    // printf("Start Wi-Fi.\n");
+    ESP_LOGW("Main", "Start Wi-Fi.");
 
-  // initialize mqtt
-//   esp_mqtt_init(status_callback, message_callback, 256, 2000);
+ 
+    // esp_mqtt_init(status_callback_aws, message_callback_aws, 256, 2000);   // initialize mqtt
+    // printf("Initialize mqtt.\n");
 
-  // create tasks
-//   xTaskCreatePinnedToCore(process_mqtt_publish, "process_mqtt_publish", 2048, NULL, 10, NULL, 1);
-//   xTaskCreatePinnedToCore(start_work_net, "start work net", 2048, NULL, 10, NULL, 1);
+    // xTaskCreatePinnedToCore(process_mqtt_publish, "process_mqtt_publish", 2048, NULL, 10, NULL, 1); // create tasks
+    // xTaskCreatePinnedToCore(start_work_net, "start work net", 2048, NULL, 10, NULL, 1);
 }
