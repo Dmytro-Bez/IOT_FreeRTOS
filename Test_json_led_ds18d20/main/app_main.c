@@ -1,4 +1,8 @@
+/*================================================Libr. includes================================================*/
 #include <stdio.h>
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "driver/gpio.h"
 #include <stdint.h>
 #include <stddef.h>
 #include <string.h>
@@ -7,24 +11,22 @@
 #include "nvs_flash.h"
 #include "esp_event.h"
 #include "esp_netif.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
 #include "freertos/semphr.h"
 #include "freertos/queue.h"
-
 #include "lwip/sockets.h"
 #include "lwip/dns.h"
 #include "lwip/netdb.h"
-
 #include "esp_log.h"
 #include "mqtt_client.h"
-
+#include "ds18b20.h"
+/*===================================================Defines=================================================*/
 #define SSID "EE"
 #define PASS "EE@05kilogram"
 #define TAG "test_esp32"
+#define BLINK_GPIO1 13
+#define BLINK_GPIO2 15
+#define TEMP_BUS 4
+#define LOGGING_ENABLED 1 
 
 char *post_data = "{\"start\":{\"Memory\":{\"doubleValue\":\"2\"},\"Name\":{\"stringValue\":\"Additional old ESP32\"}}}";
 extern const uint8_t client_cert_pem_start[] asm("_binary_client_crt_start");
@@ -33,13 +35,6 @@ extern const uint8_t client_key_pem_start[] asm("_binary_client_key_start");
 extern const uint8_t client_key_pem_end[] asm("_binary_client_key_end");
 extern const uint8_t server_cert_pem_start[] asm("_binary_mosquitto_org_crt_start");
 extern const uint8_t server_cert_pem_end[] asm("_binary_mosquitto_org_crt_end");
-
-static void log_error_if_nonzero(const char *message, int error_code)
-{
-    if (error_code != 0) {
-        ESP_LOGE(TAG, "Last error %s: 0x%x", message, error_code);
-    }
-}
 
 static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data){
     ESP_LOGD(TAG, "Event dispatched from event loop base=%s, event_id=%d", base, event_id);
@@ -73,13 +68,6 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
         break;
     case MQTT_EVENT_ERROR:
         ESP_LOGI(TAG, "MQTT_EVENT_ERROR");
-        if (event->error_handle->error_type == MQTT_ERROR_TYPE_TCP_TRANSPORT) {
-            log_error_if_nonzero("reported from esp-tls", event->error_handle->esp_tls_last_esp_err);
-            log_error_if_nonzero("reported from tls stack", event->error_handle->esp_tls_stack_err);
-            log_error_if_nonzero("captured as transport's socket errno",  event->error_handle->esp_transport_sock_errno);
-            ESP_LOGI(TAG, "Last errno string (%s)", strerror(event->error_handle->esp_transport_sock_errno));
-
-        }
         break;
     default:
         ESP_LOGI(TAG, "Other event id:%d", event->event_id);
@@ -119,7 +107,7 @@ static void wifi_event_handler(void *event_handler_arg, esp_event_base_t event_b
             break;
     }
 }
-/* Р¤СѓРЅРєС†С–СЏ РїС–РґРєР»СЋС‡РµРЅРЅСЏРј Wifi РјРµСЂРµР¶С– */
+
 void connect_wifi(){
     esp_netif_init();                                                       //TCP-IP init
     esp_event_loop_create_default();                                        //Event loop
@@ -140,22 +128,82 @@ void connect_wifi(){
 }
 
 
-void app_main(void){
-    ESP_LOGI(TAG, "[APP] Startup..");
-    ESP_LOGI(TAG, "[APP] Free memory: %d bytes", esp_get_free_heap_size());
-    ESP_LOGI(TAG, "[APP] IDF version: %s", esp_get_idf_version());
+// void app_main(void){
+//     ESP_LOGI(TAG, "[APP] Startup..");
+//     ESP_LOGI(TAG, "[APP] Free memory: %d bytes", esp_get_free_heap_size());
+//     ESP_LOGI(TAG, "[APP] IDF version: %s", esp_get_idf_version());
 
-    esp_log_level_set("*", ESP_LOG_INFO);
-    esp_log_level_set("MQTT_CLIENT", ESP_LOG_VERBOSE);
-    esp_log_level_set("TRANSPORT_BASE", ESP_LOG_VERBOSE);
-    esp_log_level_set("TRANSPORT", ESP_LOG_VERBOSE);
-    esp_log_level_set("OUTBOX", ESP_LOG_VERBOSE);
+//     esp_log_level_set("*", ESP_LOG_INFO);
+//     esp_log_level_set("MQTT_CLIENT", ESP_LOG_VERBOSE);
+//     esp_log_level_set("TRANSPORT_BASE", ESP_LOG_VERBOSE);
+//     esp_log_level_set("TRANSPORT", ESP_LOG_VERBOSE);
+//     esp_log_level_set("OUTBOX", ESP_LOG_VERBOSE);
 
+//     ESP_ERROR_CHECK(nvs_flash_init());
+//     ESP_ERROR_CHECK(esp_netif_init());
+//     ESP_ERROR_CHECK(esp_event_loop_create_default());
+
+//     connect_wifi();
+
+//     mqtt_app_start();
+// }
+
+
+static void init_s_ds18d20(void){                                   //Funk. init water sensor
+    if (ds18b20_init(TEMP_BUS) == true) {
+  		printf("Init\n");
+		ESP_LOGW("Main", "Init");
+	} else {
+  		printf( "Failed!\n");
+		ESP_LOGE("Main", "Failed");
+	}
+}
+
+void blinky1(void *pvParameter){                                    //Funk. init and work first led
+    gpio_pad_select_gpio(BLINK_GPIO1);
+    gpio_set_direction(BLINK_GPIO1, GPIO_MODE_OUTPUT);              //Set the GPIO as a push/pull output
+    while(1) {
+        gpio_set_level(BLINK_GPIO1, 0);                             //Blink off (output low)
+        // printf("Led1 LOW\n");
+        vTaskDelay(2500 / portTICK_RATE_MS);                         //Blink on (output high)
+        gpio_set_level(BLINK_GPIO1, 1);
+        // printf("Led1 HIGH\n");
+        vTaskDelay(2500 / portTICK_RATE_MS);
+    }
+}
+
+void blinky2(void *pvParameter){                                    //Funk. init and work second led
+    gpio_pad_select_gpio(BLINK_GPIO2);
+    gpio_set_direction(BLINK_GPIO2, GPIO_MODE_OUTPUT);
+    while(1) {
+        gpio_set_level(BLINK_GPIO2, 0);
+        // printf("Led2 LOW\n");
+        vTaskDelay(1000 / portTICK_RATE_MS);
+        gpio_set_level(BLINK_GPIO2, 1);
+        // printf("Led2 HIGH\n");
+        vTaskDelay(1000 / portTICK_RATE_MS);
+    }
+}
+
+void app_main(){
     ESP_ERROR_CHECK(nvs_flash_init());
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
 
+    init_s_ds18d20();
     connect_wifi();
-
     mqtt_app_start();
+    // xTaskCreate(&blinky1, "blinky1", 2048,NULL,5,NULL);
+    xTaskCreate(&blinky2, "blinky2", 1024,NULL,5,NULL );
+
+	while (1){
+		float temperature;
+		if (ds18b20_get_temperature(&temperature, NULL) == true) {
+			ESP_LOGW("Main", "Temperature: %0.1f", temperature);
+            xTaskCreate(&blinky1, "blinky1", 2048,NULL,5,NULL);
+		} else {
+			ESP_LOGW("Main", "Error reading temperature!");
+		}
+		vTaskDelay(1000 / portTICK_RATE_MS);
+	}
 }
