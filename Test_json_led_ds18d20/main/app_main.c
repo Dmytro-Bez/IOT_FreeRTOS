@@ -28,7 +28,8 @@
 #define TEMP_BUS 4
 #define LOGGING_ENABLED 1 
 
-
+int msg_id;
+esp_mqtt_client_handle_t client;
 extern const uint8_t client_cert_pem_start[] asm("_binary_client_crt_start");
 extern const uint8_t client_cert_pem_end[] asm("_binary_client_crt_end");
 extern const uint8_t client_key_pem_start[] asm("_binary_client_key_start");
@@ -39,8 +40,8 @@ extern const uint8_t server_cert_pem_end[] asm("_binary_mosquitto_org_crt_end");
 static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data){
     ESP_LOGD(TAG, "Event dispatched from event loop base=%s, event_id=%d", base, event_id);
     esp_mqtt_event_handle_t event = event_data;
-    esp_mqtt_client_handle_t client = event->client;
-    int msg_id;
+    client = event->client;
+    
     switch ((esp_mqtt_event_id_t)event_id) {
     case MQTT_EVENT_CONNECTED:
         ESP_LOGI(TAG, "MQTT_EVENT_CONNECTED");
@@ -51,7 +52,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
         break;
     case MQTT_EVENT_SUBSCRIBED:
         ESP_LOGI(TAG, "MQTT_EVENT_SUBSCRIBED, msg_id=%d", event->msg_id);
-        msg_id = esp_mqtt_client_publish(client, "/higth/test_esp32/", post_data, 0, 0, 0); //Topic and sen date!!!
+        msg_id = esp_mqtt_client_publish(client, "/higth/test_esp32/", 0, 0, 0, 0); //Topic and sen date!!!
         ESP_LOGI(TAG, "sent publish successful, msg_id=%d", msg_id);
         break;
     case MQTT_EVENT_UNSUBSCRIBED:
@@ -165,7 +166,7 @@ void blinky2(void *pvParameter){                                    //Funk. init
 
 void app_main(){
     float temperature;
-    char *post_data = "{\"Temp:"temperature\"}}}";
+    char *post_data = "{\"Temp:""\"}"; //MESSAGE
     ESP_ERROR_CHECK(nvs_flash_init());
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
@@ -175,11 +176,10 @@ void app_main(){
     mqtt_app_start();
     // xTaskCreate(&blinky1, "blinky1", 2048,NULL,5,NULL);
     xTaskCreate(&blinky2, "blinky2", 1024,NULL,5,NULL );
-
 	while (1){
-		
 		if (ds18b20_get_temperature(&temperature, NULL) == true) {
 			ESP_LOGW("Main", "Temperature: %0.1f", temperature);
+            esp_mqtt_client_publish(client, "/higth/test_esp32/", temperature, 0, 0, 0);
             xTaskCreate(&blinky1, "blinky1", 2048,NULL,5,NULL);
 		} else {
 			ESP_LOGW("Main", "Error reading temperature!");
