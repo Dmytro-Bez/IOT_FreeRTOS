@@ -28,7 +28,7 @@
 #define TEMP_BUS 4
 #define LOGGING_ENABLED 1 
 
-char *post_data = "{\"start\":{\"Memory\":{\"doubleValue\":\"2\"},\"Name\":{\"stringValue\":\"Additional old ESP32\"}}}";
+
 extern const uint8_t client_cert_pem_start[] asm("_binary_client_crt_start");
 extern const uint8_t client_cert_pem_end[] asm("_binary_client_crt_end");
 extern const uint8_t client_key_pem_start[] asm("_binary_client_key_start");
@@ -127,28 +127,6 @@ void connect_wifi(){
     esp_wifi_connect();                                                     //Wifi connect phase
 }
 
-
-// void app_main(void){
-//     ESP_LOGI(TAG, "[APP] Startup..");
-//     ESP_LOGI(TAG, "[APP] Free memory: %d bytes", esp_get_free_heap_size());
-//     ESP_LOGI(TAG, "[APP] IDF version: %s", esp_get_idf_version());
-
-//     esp_log_level_set("*", ESP_LOG_INFO);
-//     esp_log_level_set("MQTT_CLIENT", ESP_LOG_VERBOSE);
-//     esp_log_level_set("TRANSPORT_BASE", ESP_LOG_VERBOSE);
-//     esp_log_level_set("TRANSPORT", ESP_LOG_VERBOSE);
-//     esp_log_level_set("OUTBOX", ESP_LOG_VERBOSE);
-
-//     ESP_ERROR_CHECK(nvs_flash_init());
-//     ESP_ERROR_CHECK(esp_netif_init());
-//     ESP_ERROR_CHECK(esp_event_loop_create_default());
-
-//     connect_wifi();
-
-//     mqtt_app_start();
-// }
-
-
 static void init_s_ds18d20(void){                                   //Funk. init water sensor
     if (ds18b20_init(TEMP_BUS) == true) {
   		printf("Init\n");
@@ -186,6 +164,8 @@ void blinky2(void *pvParameter){                                    //Funk. init
 }
 
 void app_main(){
+    float temperature;
+    char *post_data = "{\"Temp:"temperature\"}}}";
     ESP_ERROR_CHECK(nvs_flash_init());
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
@@ -197,7 +177,7 @@ void app_main(){
     xTaskCreate(&blinky2, "blinky2", 1024,NULL,5,NULL );
 
 	while (1){
-		float temperature;
+		
 		if (ds18b20_get_temperature(&temperature, NULL) == true) {
 			ESP_LOGW("Main", "Temperature: %0.1f", temperature);
             xTaskCreate(&blinky1, "blinky1", 2048,NULL,5,NULL);
