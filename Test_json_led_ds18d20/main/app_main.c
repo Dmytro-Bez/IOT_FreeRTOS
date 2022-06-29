@@ -19,6 +19,9 @@
 #include "esp_log.h"
 #include "mqtt_client.h"
 #include "ds18b20.h"
+#include "unity/examples/unity_config.h"
+#include "unity/src/unity.h"
+#include "common.h"
 /*===================================================Defines=================================================*/
 #define SSID "EE"
 #define PASS "EE@05kilogram"
@@ -29,6 +32,7 @@
 #define LOGGING_ENABLED 1 
 
 int msg_id;
+float temperature;
 esp_mqtt_client_handle_t client;
 extern const uint8_t client_cert_pem_start[] asm("_binary_client_crt_start");
 extern const uint8_t client_cert_pem_end[] asm("_binary_client_crt_end");
@@ -36,6 +40,45 @@ extern const uint8_t client_key_pem_start[] asm("_binary_client_key_start");
 extern const uint8_t client_key_pem_end[] asm("_binary_client_key_end");
 extern const uint8_t server_cert_pem_start[] asm("_binary_mosquitto_org_crt_start");
 extern const uint8_t server_cert_pem_end[] asm("_binary_mosquitto_org_crt_end");
+
+static cJSON item[1];
+static void assert_is_value(cJSON *value_item, int type){
+    TEST_ASSERT_NOT_NULL_MESSAGE(value_item, "Item is NULL.");
+    assert_not_in_list(value_item);
+    assert_has_type(value_item, type);
+    assert_has_no_reference(value_item);
+    assert_has_no_const_string(value_item);
+    assert_has_no_string(value_item);
+}
+static void assert_parse_value(const char *string, int type){
+    parse_buffer buffer = { 0, 0, 0, 0, { 0, 0, 0 } };
+    buffer.content = (const unsigned char*) string;
+    buffer.length = strlen(string) + sizeof("");
+    buffer.hooks = global_hooks;
+
+    TEST_ASSERT_TRUE(parse_value(item, &buffer));
+    assert_is_value(item, type);
+}
+
+static void parse_value_should_parse_null(void){
+    assert_parse_value("null", cJSON_NULL);
+    reset(item);
+}
+
+static void parse_value_should_parse_true(void){
+    assert_parse_value("true", cJSON_True);
+    reset(item);
+}
+
+static void parse_value_should_parse_false(void){
+    assert_parse_value("false", cJSON_False);
+    reset(item);
+}
+
+static void parse_value_should_parse_object(void){
+    assert_parse_value("{}", temperature);
+    reset(item);
+}
 
 static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data){
     ESP_LOGD(TAG, "Event dispatched from event loop base=%s, event_id=%d", base, event_id);
@@ -165,8 +208,7 @@ void blinky2(void *pvParameter){                                    //Funk. init
 }
 
 void app_main(){
-    float temperature;
-    char *post_data = "{\"Temp:""\"}"; //MESSAGE
+    
     ESP_ERROR_CHECK(nvs_flash_init());
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
@@ -179,11 +221,13 @@ void app_main(){
 	while (1){
 		if (ds18b20_get_temperature(&temperature, NULL) == true) {
 			ESP_LOGW("Main", "Temperature: %0.1f", temperature);
-            esp_mqtt_client_publish(client, "/higth/test_esp32/", temperature, 0, 0, 0);
+            //Dates JSON
+            RUN_TEST(parse_value_should_parse_object);
             xTaskCreate(&blinky1, "blinky1", 2048,NULL,5,NULL);
 		} else {
 			ESP_LOGW("Main", "Error reading temperature!");
 		}
 		vTaskDelay(1000 / portTICK_RATE_MS);
+        return UNITY_END();
 	}
 }
