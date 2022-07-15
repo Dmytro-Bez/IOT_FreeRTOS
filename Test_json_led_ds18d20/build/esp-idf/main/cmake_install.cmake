@@ -1,4 +1,4 @@
-# Install script for directory: C:/Users/dzimi/Documents/PlatformIO/Projects/IOT_FreeRTOS/Test_json_led_ds18d20/main
+# Install script for directory: C:/Users/dzimi/Documents/sample_project_ex/sample_project/main
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)

@@ -33,6 +33,7 @@
 
 int msg_id;
 float temperature;
+int aa = 11;
 esp_mqtt_client_handle_t client;
 extern const uint8_t client_cert_pem_start[] asm("_binary_client_crt_start");
 extern const uint8_t client_cert_pem_end[] asm("_binary_client_crt_end");
@@ -76,7 +77,8 @@ static void parse_value_should_parse_false(void){
 }
 
 static void parse_value_should_parse_object(void){
-    assert_parse_value("{}", temperature);
+    // assert_parse_value("{}", temperature);
+    assert_parse_value("{\"}", aa);
     reset(item);
 }
 
@@ -213,20 +215,20 @@ void app_main(){
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
 
-    init_s_ds18d20();
+    // init_s_ds18d20();
     connect_wifi();
     mqtt_app_start();
-    // xTaskCreate(&blinky1, "blinky1", 2048,NULL,5,NULL);
+    xTaskCreate(&blinky1, "blinky1", 2048,NULL,5,NULL);
     xTaskCreate(&blinky2, "blinky2", 1024,NULL,5,NULL );
 	while (1){
-		if (ds18b20_get_temperature(&temperature, NULL) == true) {
-			ESP_LOGW("Main", "Temperature: %0.1f", temperature);
+		// if (ds18b20_get_temperature(&temperature, NULL) == true) {
+		// 	ESP_LOGW("Main", "Temperature: %0.1f", temperature);
             //Dates JSON
             RUN_TEST(parse_value_should_parse_object);
             xTaskCreate(&blinky1, "blinky1", 2048,NULL,5,NULL);
-		} else {
-			ESP_LOGW("Main", "Error reading temperature!");
-		}
+		// } else {
+		// 	ESP_LOGW("Main", "Error reading temperature!");
+		// }
 		vTaskDelay(1000 / portTICK_RATE_MS);
         return UNITY_END();
 	}

@@ -1,2 +1,2 @@
-idf_component_register(SRCS "app_main.c" "ds18b20.c" 
+idf_component_register(SRCS "ds18b20.c" "funk.c" "main.c"
                     INCLUDE_DIRS ".")

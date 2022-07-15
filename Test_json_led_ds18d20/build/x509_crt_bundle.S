@@ -1,4 +1,4 @@
-/* * Data converted from C:/Users/dzimi/Documents/PlatformIO/Projects/IOT_FreeRTOS/Test_json_led_ds18d20/build/esp-idf/mbedtls/x509_crt_bundle
+/* * Data converted from C:/Users/dzimi/Documents/sample_project_ex/sample_project/build/esp-idf/mbedtls/x509_crt_bundle
  */
 .data
 .section .rodata.embedded
