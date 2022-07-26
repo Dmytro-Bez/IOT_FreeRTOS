@@ -27,10 +27,14 @@
 #define TEMP_BUS 15
 #define LOGGING_ENABLED 1 
 
+static const char *topic_mqtt_data = "test_esp32/";
 float temperature = 0;
-// char *my_json_string;
 int msg_id;
+TaskHandle_t xPublishTask;
 TaskHandle_t xSensorTask;
+TaskHandle_t xSensor_Control;
+char *my_json_string = NULL;
+esp_mqtt_client_handle_t client;
 
 extern const uint8_t client_cert_pem_start[] asm("_binary_client_crt_start");
 extern const uint8_t client_cert_pem_end[] asm("_binary_client_crt_end");
@@ -68,7 +72,7 @@ static void ds18b20_start(void *pvParameter){
             cJSON *root = cJSON_CreateObject();
             cJSON_AddNumberToObject(root, "Temp:", temperature);
             
-            char *my_json_string = cJSON_Print(root);
+            my_json_string = cJSON_Print(root);
             ESP_LOGW(TAG, "\n%s",my_json_string);
             cJSON_Delete(root);
         } else {
@@ -91,27 +95,18 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
         ESP_LOGI(TAG, "MQTT_EVENT_DISCONNECTED");
         break;
     case MQTT_EVENT_SUBSCRIBED:
-        ESP_LOGI(TAG, "MQTT_EVENT_SUBSCRIBED, msg_id=%d", event->msg_id);
-        // msg_id = esp_mqtt_client_publish(client, "/higth/test_esp32/", json_pars(), 0, 0, 0); //Topic and sen date!!!
-        ESP_LOGI(TAG, "sent publish successful, msg_id=%d", msg_id);
+        ESP_LOGI(TAG, "MQTT_EVENT_SUBSCRIBED");
         break;
     case MQTT_EVENT_PUBLISHED:
-        ESP_LOGI(TAG, "MQTT_EVENT_PUBLISHED, msg_id=%d", event->msg_id);
+        ESP_LOGI(TAG, "MQTT_EVENT_PUBLISHED");
         break;
     case MQTT_EVENT_DATA:
         ESP_LOGI(TAG, "MQTT_EVENT_DATA");
-       
-        printf("TOPIC=%.*s\r\n", event->topic_len, event->topic);
-        printf("DATA=%.*s\r\n", event->data_len, event->data);
         break;
     case MQTT_EVENT_ERROR:
         ESP_LOGI(TAG, "MQTT_EVENT_ERROR");
-        if (event->error_handle->error_type == MQTT_ERROR_TYPE_TCP_TRANSPORT) {
-            ESP_LOGI(TAG, "Last errno string (%s)", strerror(event->error_handle->esp_transport_sock_errno));
-        }
         break;
     default:
-        ESP_LOGI(TAG, "Other event id:%d", event->event_id);
         break;
     }
 }
@@ -123,9 +118,7 @@ static void mqtt_app_start(void){
         .client_key_pem = (const char *)client_key_pem_start,
         .cert_pem = (const char *)server_cert_pem_start,
     };
-
-    ESP_LOGI(TAG, "[APP] Free memory: %d bytes", esp_get_free_heap_size());
-    esp_mqtt_client_handle_t client = esp_mqtt_client_init(&mqtt_cfg);
+    client = esp_mqtt_client_init(&mqtt_cfg);
     esp_mqtt_client_register_event(client, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
     esp_mqtt_client_start(client);
 }
@@ -166,4 +159,17 @@ static void connect_wifi(void){
     esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_configuration);
     esp_wifi_start();                                                       //Wifi start phase
     esp_wifi_connect();                                                    //Wifi connect phase
+}
+
+static void publish_mqtt(void *pvParameter){
+    while (1){
+        ESP_LOGI(TAG, "Sending data to topic %s...", topic_mqtt_data);
+        if(!xQueueReceive(xSensor_Control, &my_json_string, 3000)){
+            ESP_LOGI(TAG, "Error send dates sensor.\n");
+        }
+
+        esp_mqtt_client_publish(client, topic_mqtt_data, my_json_string, 0, 0, 0);
+        free(my_json_string);
+    }
+    vTaskDelay(5000 / portTICK_RATE_MS);
 }
