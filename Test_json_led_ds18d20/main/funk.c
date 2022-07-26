@@ -26,7 +26,11 @@
 #define BLINK_GPIO1 2
 #define TEMP_BUS 15
 #define LOGGING_ENABLED 1 
+
 float temperature = 0;
+// char *my_json_string;
+int msg_id;
+TaskHandle_t xSensorTask;
 
 extern const uint8_t client_cert_pem_start[] asm("_binary_client_crt_start");
 extern const uint8_t client_cert_pem_end[] asm("_binary_client_crt_end");
@@ -34,7 +38,6 @@ extern const uint8_t client_key_pem_start[] asm("_binary_client_key_start");
 extern const uint8_t client_key_pem_end[] asm("_binary_client_key_end");
 extern const uint8_t server_cert_pem_start[] asm("_binary_mosquitto_org_crt_start");
 extern const uint8_t server_cert_pem_end[] asm("_binary_mosquitto_org_crt_end");
-int msg_id;
 
 static void blinky1(void *pvParameter){
     gpio_pad_select_gpio(BLINK_GPIO1);
@@ -53,54 +56,44 @@ static void blinky1(void *pvParameter){
     }
 }
 
-static bool ds18b20_start(void){
+static void ds18b20_start(void *pvParameter){
     if (ds18b20_init(TEMP_BUS) == true) {
   		printf("Init\n");
 	} else {
   	    printf("Failed!\n");
 	}
-    // while (1){
+    while (1){
         if (ds18b20_get_temperature(&temperature, NULL) == true) {
             printf("Temp:%0.1f\n", temperature);
+            cJSON *root = cJSON_CreateObject();
+            cJSON_AddNumberToObject(root, "Temp:", temperature);
+            
+            char *my_json_string = cJSON_Print(root);
+            ESP_LOGW(TAG, "\n%s",my_json_string);
+            cJSON_Delete(root);
         } else {
             printf("Not temp!\n");
         }
-        // vTaskDelay(1500 / portTICK_RATE_MS);
-    // }
-    return 0;
+        vTaskDelay(5000 / portTICK_RATE_MS);
+    }
+   return 0;
 }
 
-static bool json_pars(void){
-    cJSON *root = cJSON_CreateObject();
-    cJSON_AddNumberToObject(root, "Temp:", ds18b20_start());
-
-	char *my_json_string = cJSON_Print(root);
-	ESP_LOGI(TAG, "\n%s",my_json_string);
-	cJSON_Delete(root);
-    return 0;
- }
-
 static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data){
-    ESP_LOGD(TAG, "Event dispatched from event loop base=%s, event_id=%d", base, event_id);
     esp_mqtt_event_handle_t event = event_data;
     esp_mqtt_client_handle_t client = event->client;
     
     switch ((esp_mqtt_event_id_t)event_id) {
     case MQTT_EVENT_CONNECTED:
         ESP_LOGI(TAG, "MQTT_EVENT_CONNECTED");
-        msg_id = esp_mqtt_client_subscribe(client, "/higth/test_esp32/", 0);
         break;
     case MQTT_EVENT_DISCONNECTED:
         ESP_LOGI(TAG, "MQTT_EVENT_DISCONNECTED");
         break;
     case MQTT_EVENT_SUBSCRIBED:
         ESP_LOGI(TAG, "MQTT_EVENT_SUBSCRIBED, msg_id=%d", event->msg_id);
-    
         // msg_id = esp_mqtt_client_publish(client, "/higth/test_esp32/", json_pars(), 0, 0, 0); //Topic and sen date!!!
         ESP_LOGI(TAG, "sent publish successful, msg_id=%d", msg_id);
-        break;
-    case MQTT_EVENT_UNSUBSCRIBED:
-        ESP_LOGI(TAG, "MQTT_EVENT_UNSUBSCRIBED, msg_id=%d", event->msg_id);
         break;
     case MQTT_EVENT_PUBLISHED:
         ESP_LOGI(TAG, "MQTT_EVENT_PUBLISHED, msg_id=%d", event->msg_id);
