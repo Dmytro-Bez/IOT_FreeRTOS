@@ -26,6 +26,7 @@
 #define BLINK_GPIO1 2
 #define TEMP_BUS 15
 #define LOGGING_ENABLED 1 
+#define TIMER 60000 
 
 static const char *topic_mqtt_data = "test_esp32/";
 float temperature = 0;
@@ -69,18 +70,17 @@ static void ds18b20_start(void *pvParameter){
 	}
     while (1){
         if (ds18b20_get_temperature(&temperature, NULL) == true) {
-            printf("Temp:%0.1f\n", temperature);
+            // printf("Temp:%0.1f\n", temperature);
             root = cJSON_CreateObject();
             cJSON_AddNumberToObject(root, "Temp:", temperature);
             
             my_json_string = cJSON_Print(root);
-            ESP_LOGW(TAG, "\n%s",my_json_string);
+            // ESP_LOGW(TAG, "\n%s",my_json_string);
             cJSON_Delete(root);
-            vTaskDelay(pdMS_TO_TICKS(2000));
+            vTaskDelay(pdMS_TO_TICKS(TIMER));
         } else {
             printf("Not temp!\n");
         }
-        // vTaskDelay(pdMS_TO_TICKS(2000));
     }
 }
 
@@ -169,7 +169,6 @@ static void publish_mqtt(void *pvParameter){
         }
         esp_mqtt_client_publish(client, topic_mqtt_data, my_json_string, 0, 0, 0);
         free(my_json_string);
+        vTaskDelay(pdMS_TO_TICKS(TIMER));
     }
-//    vTaskDelay(5000 / portTICK_RATE_MS);
-vTaskDelay(pdMS_TO_TICKS(2000));
 }
