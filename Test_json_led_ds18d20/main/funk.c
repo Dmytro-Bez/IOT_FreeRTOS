@@ -26,7 +26,7 @@
 #define BLINK_GPIO1 2
 #define TEMP_BUS 15
 #define LOGGING_ENABLED 1 
-#define TIMER 60000 
+#define TIMER 1000 
 
 static const char *topic_mqtt_data = "test_esp32/";
 float temperature = 0;
